@@ -1,7 +1,9 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
@@ -13,54 +15,53 @@ import java.util.List;
 @RestController
 @RequestMapping("/users")
 @Slf4j
+@Validated
 public class UserController {
 
     private final List<User> users = new ArrayList<>();
     private int nextId = 1;
 
     @PostMapping
-    public ResponseEntity<User> add(@RequestBody User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@")) {
-            throw new ValidationException("Некорректный email");
-        }
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            throw new ValidationException("Некорректный логин");
-        }
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
+    public ResponseEntity<User> add(@Valid @RequestBody User user) {
+        // 1. Ручная валидация: дата не должна быть в будущем
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            log.warn("Дата рождения в будущем: {}", user.getBirthday());
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
 
+        // 2. Логика: если имя пустое, берем логин
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+
+        // 3. Сохраняем
         user.setId(nextId++);
         users.add(user);
+        log.info("Добавлен пользователь с id={}, login={}", user.getId(), user.getLogin());
+
         return ResponseEntity.status(201).body(user);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> update(@PathVariable long id, @RequestBody User user) {
+    public ResponseEntity<User> update(@PathVariable long id, @Valid @RequestBody User user) {
+        // Проверка совпадения ID
         if (user.getId() != 0 && user.getId() != id) {
             log.warn("ID в теле ({}) не совпадает с id в пути ({})", user.getId(), id);
-            return ResponseEntity.badRequest().build();
+            throw new ValidationException("ID в теле не совпадает с ID в пути");
         }
 
-        if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@")) {
-            log.warn("Попытка обновления пользователя с некорректным email: {}", user.getEmail());
-            return ResponseEntity.badRequest().build();
+        // Ручная валидация даты
+        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            log.warn("Дата рождения в будущем при обновлении: {}", user.getBirthday());
+            throw new ValidationException("Дата рождения не может быть в будущем");
         }
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            log.warn("Попытка обновления пользователя с некорректным логином: {}", user.getLogin());
-            return ResponseEntity.badRequest().build();
-        }
+
+        // Подстановка имени
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
-            log.warn("Попытка обновления пользователя с датой рождения в будущем: {}", user.getBirthday());
-            return ResponseEntity.badRequest().build();
-        }
 
+        // Поиск и обновление
         for (int i = 0; i < users.size(); i++) {
             if (users.get(i).getId() == id) {
                 users.set(i, user);
