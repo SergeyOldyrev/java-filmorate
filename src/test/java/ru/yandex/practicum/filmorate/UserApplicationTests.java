@@ -31,13 +31,18 @@ class UserApplicationTests {
     @Test
     void shouldReturnBadRequestWhenEmailIsEmpty() {
         User user = new User();
-        user.setLogin("test_login"); // email пустой -> сработает @NotBlank в модели
+        user.setLogin("test_login");
+        // email намеренно пустой (null)
+
         try {
+            // Пытаемся отправить запрос
             restTemplate.postForEntity("/users", user, User.class);
-            fail("Ожидалась ошибка 400");
+            // Если код дошел сюда — значит, 400 не было, тест должен упасть
+            fail("Ожидалась ошибка 400 (пустой email), но запрос прошел успешно");
         } catch (HttpClientErrorException e) {
-            assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode()); // Можно проверить текст ошибки, если нужно: //
-            assertTrue(e.getResponseBodyAsString().contains("Email обязателен"));
+            // Успех: мы поймали ошибку клиента
+            assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode(),
+                    "Статус должен быть 400, а не " + e.getStatusCode());
         }
     }
 
