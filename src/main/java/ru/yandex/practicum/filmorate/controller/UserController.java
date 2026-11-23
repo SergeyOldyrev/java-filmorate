@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
@@ -15,28 +16,25 @@ import java.util.List;
 public class UserController {
 
     private final List<User> users = new ArrayList<>();
+    private int nextId = 1;
 
     @PostMapping
     public ResponseEntity<User> add(@RequestBody User user) {
         if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@")) {
-            log.warn("Попытка создания пользователя с некорректным email: {}", user.getEmail());
-            return ResponseEntity.badRequest().build();
+            throw new ValidationException("Некорректный email");
         }
         if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            log.warn("Попытка создания пользователя с некорректным логином: {}", user.getLogin());
-            return ResponseEntity.badRequest().build();
+            throw new ValidationException("Некорректный логин");
         }
         if (user.getName() == null || user.getName().isBlank()) {
-            log.debug("Имя не указано, устанавливаем логин как имя: {}", user.getLogin());
             user.setName(user.getLogin());
         }
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
-            log.warn("Попытка создания пользователя с датой рождения в будущем: {}", user.getBirthday());
-            return ResponseEntity.badRequest().build();
+            throw new ValidationException("Дата рождения не может быть в будущем");
         }
 
+        user.setId(nextId++);
         users.add(user);
-        log.info("Добавлен пользователь с id={}, login={}", user.getId(), user.getLogin());
         return ResponseEntity.status(201).body(user);
     }
 
