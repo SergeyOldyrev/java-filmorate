@@ -110,13 +110,7 @@ class UserApplicationTests {
 
         try {
             // ПРАВИЛЬНЫЙ ВЫЗОВ: exchange + HttpMethod.PUT
-            restTemplate.exchange(
-                    "/users/{id}",
-                    HttpMethod.PUT,
-                    entity,
-                    User.class,
-                    id
-            );
+            restTemplate.exchange("/users/{id}", HttpMethod.PUT, entity, User.class, id);
             fail("Ожидалась ошибка 400 из-за несовпадения ID");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
@@ -134,18 +128,13 @@ class UserApplicationTests {
 
         try {
             // Пытаемся обновить несуществующего пользователя
-            restTemplate.exchange(
-                    "/users/{id}",
-                    HttpMethod.PUT,
-                    entity,
-                    User.class,
-                    999L
-            );
+            restTemplate.exchange("/users/{id}", HttpMethod.PUT, entity, User.class, 999L);
             fail("Ожидалась ошибка 404");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());
         }
     }
+
     @Test
     void shouldReturnOkWhenUpdatingValidUser() {
         // 1. Создаем пользователя
@@ -164,13 +153,7 @@ class UserApplicationTests {
 
         HttpEntity<User> entity = new HttpEntity<>(update);
 
-        ResponseEntity<User> updateResponse = restTemplate.exchange(
-                "/users/{id}",
-                HttpMethod.PUT,
-                entity,
-                User.class,
-                id
-        );
+        ResponseEntity<User> updateResponse = restTemplate.exchange("/users/{id}", HttpMethod.PUT, entity, User.class, id);
 
         assertEquals(HttpStatus.OK, updateResponse.getStatusCode());
         assertEquals("new_login", updateResponse.getBody().getLogin());
