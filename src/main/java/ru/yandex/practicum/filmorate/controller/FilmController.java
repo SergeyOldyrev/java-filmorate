@@ -39,10 +39,9 @@ public class FilmController {
         }
 
         // ✅ Исправлено: убрана проверка на null, проверяем только значение
-        if (film.getDuration() <= 0) {
-            log.warn("Продолжительность фильма не положительная: {}", film.getDuration());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Длительность фильма должна быть положительной"));
+        if (film.getDuration() == null || film.getDuration() <= 0) {
+            log.warn("Продолжительность фильма невалидна");
+            return ResponseEntity.badRequest().body(Map.of("error", "Длительность фильма должна быть положительной"));
         }
 
         film.setId(nextId++);
