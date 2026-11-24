@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
@@ -23,7 +24,7 @@ public class UserController {
     public ResponseEntity<?> add(@Valid @RequestBody User user) {
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
             log.warn("Дата рождения в будущем: {}", user.getBirthday());
-
+            // ✅ Возвращаем JSON с ошибкой
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Дата рождения не может быть в будущем"));
         }
@@ -40,13 +41,16 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> update(@PathVariable long id, @RequestBody User user) {
-
+    public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
+        // 1. Проверка ID
         if (user.getId() != 0 && user.getId() != id) {
             log.warn("ID в теле ({}) не совпадает с id в пути ({})", user.getId(), id);
-            return ResponseEntity.badRequest().build();
+            // ✅ Возвращаем JSON с ошибкой, а не пустой ответ
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
+        // 2. Поиск пользователя
         User existing = users.stream()
                 .filter(u -> u.getId() == id)
                 .findFirst()
@@ -54,9 +58,12 @@ public class UserController {
 
         if (existing == null) {
             log.warn("Пользователь с id={} не найден для обновления", id);
-            return ResponseEntity.notFound().build();
+            // ✅ Возвращаем JSON с ошибкой 404
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Пользователь не найден"));
         }
 
+        // 3. Обновление полей
         existing.setLogin(user.getLogin());
         existing.setEmail(user.getEmail());
         existing.setName(user.getName());
@@ -67,14 +74,19 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getById(@PathVariable long id) {
-        for (User u : users) {
-            if (u.getId() == id) {
-                return ResponseEntity.ok(u);
-            }
+    public ResponseEntity<?> getById(@PathVariable long id) {
+        User user = users.stream()
+                .filter(u -> u.getId() == id)
+                .findFirst()
+                .orElse(null);
+
+        if (user == null) {
+            log.warn("Запрос несуществующего пользователя с id={}", id);
+            // ✅ Возвращаем JSON с ошибкой 404
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Пользователь не найден"));
         }
-        log.warn("Запрос несуществующего пользователя с id={}", id);
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping
