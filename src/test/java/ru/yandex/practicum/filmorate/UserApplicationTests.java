@@ -32,17 +32,12 @@ class UserApplicationTests {
     void shouldReturnBadRequestWhenEmailIsEmpty() {
         User user = new User();
         user.setLogin("test_login");
-        // email намеренно пустой (null)
 
         try {
-            // Пытаемся отправить запрос
             restTemplate.postForEntity("/users", user, User.class);
-            // Если код дошел сюда — значит, 400 не было, тест должен упасть
-            fail("Ожидалась ошибка 400 (пустой email), но запрос прошел успешно");
+            fail("Ожидалась ошибка 400");
         } catch (HttpClientErrorException e) {
-            // Успех: мы поймали ошибку клиента
-            assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode(),
-                    "Статус должен быть 400, а не " + e.getStatusCode());
+            assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
         }
     }
 
@@ -50,7 +45,7 @@ class UserApplicationTests {
     void shouldReturnBadRequestWhenEmailMissingAt() {
         User user = new User();
         user.setLogin("test_login");
-        user.setEmail("test.com"); // нет @
+        user.setEmail("test.com");
         try {
             restTemplate.postForEntity("/users", user, User.class);
             fail("Ожидалась ошибка 400");
@@ -62,7 +57,7 @@ class UserApplicationTests {
     @Test
     void shouldReturnBadRequestWhenLoginContainsSpace() {
         User user = new User();
-        user.setLogin("test user"); // пробел user.setEmail("test@test.com");
+        user.setLogin("test user");
         try {
             restTemplate.postForEntity("/users", user, User.class);
             fail("Ожидалась ошибка 400");
@@ -75,10 +70,13 @@ class UserApplicationTests {
     void shouldSetNameToLoginWhenNameIsEmpty() {
         User user = new User();
         user.setLogin("my_login");
-        user.setEmail("test@test.com"); // name пустой
+        user.setEmail("test@test.com");
+        user.setBirthday(LocalDate.now().minusYears(20));
+
         ResponseEntity<User> response = restTemplate.postForEntity("/users", user, User.class);
+
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals("my_login", response.getBody().getName()); // Имя подставилось из логина
+        assertEquals("my_login", response.getBody().getName());
     }
 
     @Test
@@ -97,7 +95,6 @@ class UserApplicationTests {
 
     @Test
     void shouldReturnBadRequestWhenIdMismatchInUpdate() {
-        // 1. Создаем пользователя
         User existing = new User();
         existing.setLogin("existing_login");
         existing.setEmail("existing@test.com");
@@ -105,16 +102,15 @@ class UserApplicationTests {
         assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
         long id = createResponse.getBody().getId();
 
-        // 2. Пытаемся обновить с несовпадающим ID в теле
         User update = new User();
-        update.setId(999); // Не совпадает с ID в пути
+        update.setId(999);
         update.setLogin("updated_login");
         update.setEmail("updated@test.com");
 
         HttpEntity<User> entity = new HttpEntity<>(update);
 
         try {
-            // ПРАВИЛЬНЫЙ ВЫЗОВ: exchange + HttpMethod.PUT
+
             restTemplate.exchange("/users/{id}", HttpMethod.PUT, entity, User.class, id);
             fail("Ожидалась ошибка 400 из-за несовпадения ID");
         } catch (HttpClientErrorException e) {
@@ -132,7 +128,7 @@ class UserApplicationTests {
         HttpEntity<User> entity = new HttpEntity<>(update);
 
         try {
-            // Пытаемся обновить несуществующего пользователя
+
             restTemplate.exchange("/users/{id}", HttpMethod.PUT, entity, User.class, 999L);
             fail("Ожидалась ошибка 404");
         } catch (HttpClientErrorException e) {
@@ -142,14 +138,13 @@ class UserApplicationTests {
 
     @Test
     void shouldReturnOkWhenUpdatingValidUser() {
-        // 1. Создаем пользователя
+
         User existing = new User();
         existing.setLogin("old_login");
         existing.setEmail("old@test.com");
         ResponseEntity<User> createResponse = restTemplate.postForEntity("/users", existing, User.class);
         long id = createResponse.getBody().getId();
 
-        // 2. Обновляем корректными данными
         User update = new User();
         update.setId((int) id); // ID совпадает с путем
         update.setLogin("new_login");
