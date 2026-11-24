@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/films")
@@ -21,26 +22,27 @@ public class FilmController {
     public ResponseEntity<?> add(@RequestBody Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
             log.warn("Попытка создания фильма с пустым названием");
+            // ✅ Возвращаем JSON: {"error": "..."}
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", "Название фильма не может быть пустым"));
+                    .body(Map.of("error", "Название фильма не может быть пустым"));
         }
 
         if (film.getDescription() != null && film.getDescription().length() > 200) {
             log.warn("Описание фильма превышает 200 символов");
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", "Описание не должно превышать 200 символов"));
+                    .body(Map.of("error", "Описание не должно превышать 200 символов"));
         }
 
         if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             log.warn("Дата релиза раньше 28.12.1895");
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", "Дата релиза должна быть не раньше 28.12.1895"));
+                    .body(Map.of("error", "Дата релиза должна быть не раньше 28.12.1895"));
         }
 
         if (film.getDuration() <= 0) {
             log.warn("Продолжительность фильма не положительная");
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", "Длительность фильма должна быть положительной"));
+                    .body(Map.of("error", "Длительность фильма должна быть положительной"));
         }
 
         film.setId(nextId++);
@@ -51,12 +53,12 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-        // 1. Проверка совпадения ID в теле и пути
+        // 1. Проверка ID
         if (film.getId() != 0 && film.getId() != id) {
             log.warn("ID в теле ({}) не совпадает с id в пути ({})", film.getId(), id);
-            // Возвращаем JSON: {"error": "ID в теле не совпадает с ID в пути"}
+            // ✅ Возвращаем JSON с ошибкой
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", "ID в теле не совпадает с ID в пути"));
+                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
         // 2. Поиск фильма
@@ -67,18 +69,16 @@ public class FilmController {
 
         if (existing == null) {
             log.warn("Фильм с id={} не найден для обновления", id);
-            // ВАЖНО: Возвращаем Map, Spring превратит его в JSON: {"error": "Фильм не найден"}
+            // ✅ ВАЖНО: Возвращаем JSON вместо пустого тела
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(java.util.Map.of("error", "Фильм не найден"));
+                    .body(Map.of("error", "Фильм не найден"));
         }
 
-        // 3. Копируем поля из входящего объекта в существующий
+        // 3. Копируем данные
         existing.setName(film.getName());
         existing.setDescription(film.getDescription());
         existing.setReleaseDate(film.getReleaseDate());
         existing.setDuration(film.getDuration());
-
-        // ID не меняем, он уже верный
 
         log.info("Обновлён фильм с id={}, name={}", id, existing.getName());
         return ResponseEntity.ok(existing);
@@ -90,15 +90,17 @@ public class FilmController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object> getById(@PathVariable long id) {
+    public ResponseEntity<?> getById(@PathVariable long id) {
         Film film = films.stream()
                 .filter(f -> f.getId() == id)
                 .findFirst()
                 .orElse(null);
 
         if (film == null) {
+            log.warn("Запрос несуществующего фильма с id={}", id);
+            // ✅ ВАЖНО: Возвращаем JSON вместо пустого тела
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(java.util.Map.of("error", "Фильм не найден"));
+                    .body(Map.of("error", "Фильм не найден"));
         }
         return ResponseEntity.ok(film);
     }
