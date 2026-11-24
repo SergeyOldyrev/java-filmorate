@@ -24,7 +24,7 @@ public class UserController {
     public ResponseEntity<?> add(@Valid @RequestBody User user) {
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
             log.warn("Дата рождения в будущем: {}", user.getBirthday());
-            // ✅ Возвращаем JSON с ошибкой
+
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Дата рождения не может быть в будущем"));
         }
@@ -42,15 +42,16 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
-        // 1. Проверка ID
-        if (user.getId() != 0 && user.getId() != id) {
-            log.warn("ID в теле ({}) не совпадает с id в пути ({})", user.getId(), id);
-            // ✅ Возвращаем JSON с ошибкой, а не пустой ответ
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+
+        if (user == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
-        // 2. Поиск пользователя
+        if (user.getId() != 0 && user.getId() != id) {
+            log.warn("ID в теле ({}) не совпадает с id в пути ({})", user.getId(), id);
+            return ResponseEntity.badRequest().body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+        }
+
         User existing = users.stream()
                 .filter(u -> u.getId() == id)
                 .findFirst()
@@ -58,16 +59,13 @@ public class UserController {
 
         if (existing == null) {
             log.warn("Пользователь с id={} не найден для обновления", id);
-            // ✅ Возвращаем JSON с ошибкой 404
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Пользователь не найден"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Пользователь не найден"));
         }
 
-        // 3. Обновление полей
-        existing.setLogin(user.getLogin());
-        existing.setEmail(user.getEmail());
-        existing.setName(user.getName());
-        existing.setBirthday(user.getBirthday());
+        if (user.getLogin() != null) existing.setLogin(user.getLogin());
+        if (user.getEmail() != null) existing.setEmail(user.getEmail());
+        if (user.getName() != null) existing.setName(user.getName());
+        if (user.getBirthday() != null) existing.setBirthday(user.getBirthday());
 
         log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
         return ResponseEntity.ok(existing);
@@ -82,7 +80,7 @@ public class UserController {
 
         if (user == null) {
             log.warn("Запрос несуществующего пользователя с id={}", id);
-            // ✅ Возвращаем JSON с ошибкой 404
+
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Пользователь не найден"));
         }
