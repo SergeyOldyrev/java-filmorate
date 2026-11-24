@@ -53,34 +53,38 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-        // 1. Проверка ID
+        // 1. ЗАЩИТА: Проверка на null
+        if (film == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Тело запроса не может быть пустым"));
+        }
+
+        // 2. Проверка ID
         if (film.getId() != 0 && film.getId() != id) {
-            log.warn("ID в теле ({}) не совпадает с id в пути ({})", film.getId(), id);
-            // ✅ Возвращаем JSON с ошибкой
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
-        // 2. Поиск фильма
+        // 3. Поиск фильма
         Film existing = films.stream()
                 .filter(f -> f.getId() == id)
                 .findFirst()
                 .orElse(null);
 
+        // 4. Если фильм не найден -> 404
         if (existing == null) {
-            log.warn("Фильм с id={} не найден для обновления", id);
-            // ✅ ВАЖНО: Возвращаем JSON вместо пустого тела
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Фильм не найден"));
         }
 
-        // 3. Копируем данные
-        existing.setName(film.getName());
-        existing.setDescription(film.getDescription());
-        existing.setReleaseDate(film.getReleaseDate());
-        existing.setDuration(film.getDuration());
+        // 5. Явное обновление полей
+        if (film.getName() != null) existing.setName(film.getName());
+        if (film.getDescription() != null) existing.setDescription(film.getDescription());
+        if (film.getReleaseDate() != null) existing.setReleaseDate(film.getReleaseDate());
 
-        log.info("Обновлён фильм с id={}, name={}", id, existing.getName());
+        log.info("Обновлен фильм с id={}, name={}", id, existing.getName());
+
+        // 6. Возвращаем УСПЕШНЫЙ ответ (200 OK)
         return ResponseEntity.ok(existing);
     }
 
