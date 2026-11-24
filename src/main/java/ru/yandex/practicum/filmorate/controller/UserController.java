@@ -42,40 +42,36 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
-        // 1. ЗАЩИТА: Если тело запроса пустое, сразу возвращаем ошибку, а не ломаемся
+        // 1. Защита от пустого тела
         if (user == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
-        // 2. Проверка ID (опционально, зависит от требований)
+        // 2. Проверка ID
         if (user.getId() != 0 && user.getId() != id) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
-        // 3. Поиск пользователя в списке
+        // 3. Поиск пользователя
         User existing = users.stream()
                 .filter(u -> u.getId() == id)
                 .findFirst()
                 .orElse(null);
 
-        // 4. Если пользователь не найден -> 404
         if (existing == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Пользователь не найден"));
         }
 
-        // 5. Явное обновление полей (КОПИРОВАНИЕ ДАННЫХ)
-        // Это самый надежный способ, он не сломается, если в запросе пропущено какое-то поле
-        if (user.getLogin() != null) existing.setLogin(user.getLogin());
-        if (user.getEmail() != null) existing.setEmail(user.getEmail());
-        if (user.getName() != null) existing.setName(user.getName());
-        if (user.getBirthday() != null) existing.setBirthday(user.getBirthday());
+        // 4. Безопасное обновление полей
+        existing.setLogin(user.getLogin() != null ? user.getLogin() : existing.getLogin());
+        existing.setEmail(user.getEmail() != null ? user.getEmail() : existing.getEmail());
+        existing.setName(user.getName() != null ? user.getName() : existing.getName());
+        existing.setBirthday(user.getBirthday() != null ? user.getBirthday() : existing.getBirthday());
 
         log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
-
-        // 6. Возвращаем УСПЕШНЫЙ ответ (200 OK) с полным объектом
         return ResponseEntity.ok(existing);
     }
 

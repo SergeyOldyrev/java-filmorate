@@ -22,7 +22,6 @@ public class FilmController {
     public ResponseEntity<?> add(@RequestBody Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
             log.warn("Попытка создания фильма с пустым названием");
-            // ✅ Возвращаем JSON: {"error": "..."}
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Название фильма не может быть пустым"));
         }
@@ -39,8 +38,9 @@ public class FilmController {
                     .body(Map.of("error", "Дата релиза должна быть не раньше 28.12.1895"));
         }
 
+        // ✅ Исправлено: убрана проверка на null, проверяем только значение
         if (film.getDuration() <= 0) {
-            log.warn("Продолжительность фильма не положительная");
+            log.warn("Продолжительность фильма не положительная: {}", film.getDuration());
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Длительность фильма должна быть положительной"));
         }
