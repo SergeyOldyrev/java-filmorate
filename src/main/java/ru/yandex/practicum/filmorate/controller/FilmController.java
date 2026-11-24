@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/films")
@@ -18,22 +19,30 @@ public class FilmController {
     private int nextId = 1;
 
     @PostMapping
-    public ResponseEntity<Film> add(@RequestBody Film film) {
+    public ResponseEntity<?> add(@RequestBody Film film) {
+
         if (film.getName() == null || film.getName().isBlank()) {
             log.warn("Попытка создания фильма с пустым названием");
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body("Название фильма не может быть пустым");
         }
+
         if (film.getDescription() != null && film.getDescription().length() > 200) {
             log.warn("Описание фильма превышает 200 символов");
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body("Описание не должно превышать 200 символов");
         }
+
         if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             log.warn("Дата релиза раньше 28.12.1895");
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body("Дата релиза должна быть не раньше 28.12.1895");
         }
+
         if (film.getDuration() <= 0) {
             log.warn("Продолжительность фильма не положительная");
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body("Длительность фильма должна быть положительной");
         }
 
         film.setId(nextId++);
@@ -47,7 +56,7 @@ public class FilmController {
 
         if (film.getId() != 0 && film.getId() != id) {
             log.warn("ID в теле ({}) не совпадает с id в пути ({})", film.getId(), id);
-            return ResponseEntity.badRequest().body("ID в теле не совпадает с ID в пути");
+            return ResponseEntity.badRequest().body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
         Film existing = films.stream()
@@ -58,7 +67,7 @@ public class FilmController {
         if (existing == null) {
             log.warn("Фильм с id={} не найден для обновления", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Фильм не найден");
+                    .body(Map.of("error", "Фильм не найден"));
         }
 
         existing.setName(film.getName());
