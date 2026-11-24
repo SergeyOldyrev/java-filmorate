@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -14,6 +15,7 @@ import java.util.List;
 @Slf4j
 public class FilmController {
     private final List<Film> films = new ArrayList<>();
+    private int nextId = 1;
 
     @PostMapping
     public ResponseEntity<Film> add(@RequestBody Film film) {
@@ -34,27 +36,39 @@ public class FilmController {
             return ResponseEntity.badRequest().build();
         }
 
+        film.setId(nextId++);
         films.add(film);
         log.info("Добавлен фильм с id={}, name={}", film.getId(), film.getName());
         return ResponseEntity.status(201).body(film);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Film> update(@PathVariable long id, @RequestBody Film film) {
+    public ResponseEntity<Object> update(@PathVariable long id, @RequestBody Film film) {
+
         if (film.getId() != 0 && film.getId() != id) {
             log.warn("ID в теле ({}) не совпадает с id в пути ({})", film.getId(), id);
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body("ID в теле не совпадает с ID в пути");
         }
 
-        for (int i = 0; i < films.size(); i++) {
-            if (films.get(i).getId() == id) {
-                films.set(i, film);
-                log.info("Обновлен фильм с id={}", id);
-                return ResponseEntity.ok(film);
-            }
+        Film existing = films.stream()
+                .filter(f -> f.getId() == id)
+                .findFirst()
+                .orElse(null);
+
+        if (existing == null) {
+            log.warn("Фильм с id={} не найден для обновления", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Фильм не найден");
         }
-        log.warn("Фильм с id={} не найден для обновления", id);
-        return ResponseEntity.notFound().build();
+
+        existing.setName(film.getName());
+        existing.setDescription(film.getDescription());
+        existing.setReleaseDate(film.getReleaseDate());
+        existing.setDuration(film.getDuration());
+
+        log.info("Обновлён фильм с id={}, name={}", id, existing.getName());
+
+        return ResponseEntity.ok(existing);
     }
 
     @GetMapping
