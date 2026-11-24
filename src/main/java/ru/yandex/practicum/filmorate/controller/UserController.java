@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
@@ -41,11 +40,11 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
+    public ResponseEntity<User> update(@PathVariable long id, @RequestBody User user) {
 
         if (user.getId() != 0 && user.getId() != id) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+            log.warn("ID в теле ({}) не совпадает с id в пути ({})", user.getId(), id);
+            return ResponseEntity.badRequest().build();
         }
 
         User existing = users.stream()
@@ -54,14 +53,16 @@ public class UserController {
                 .orElse(null);
 
         if (existing == null) {
-            log.warn("Пользователь с id={} не найден", id);
-
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Пользователь не найден"));
+            log.warn("Пользователь с id={} не найден для обновления", id);
+            return ResponseEntity.notFound().build();
         }
 
+        existing.setLogin(user.getLogin());
+        existing.setEmail(user.getEmail());
         existing.setName(user.getName());
+        existing.setBirthday(user.getBirthday());
 
+        log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
         return ResponseEntity.ok(existing);
     }
 
