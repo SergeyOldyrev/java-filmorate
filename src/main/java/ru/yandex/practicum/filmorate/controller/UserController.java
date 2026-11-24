@@ -30,7 +30,8 @@ public class UserController {
         }
 
         if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Имя пользователя не может быть пустым"));
         }
 
         user.setId(nextId++);
@@ -42,16 +43,14 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
-        // 1. Защита от пустого тела
+        // 1. Защита от пустого тела запроса
         if (user == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Тело запроса не может быть пустым"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
         // 2. Проверка ID
         if (user.getId() != 0 && user.getId() != id) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+            return ResponseEntity.badRequest().body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
 
         // 3. Поиск пользователя
@@ -65,13 +64,15 @@ public class UserController {
                     .body(Map.of("error", "Пользователь не найден"));
         }
 
-        // 4. Безопасное обновление полей
+
         existing.setLogin(user.getLogin() != null ? user.getLogin() : existing.getLogin());
         existing.setEmail(user.getEmail() != null ? user.getEmail() : existing.getEmail());
         existing.setName(user.getName() != null ? user.getName() : existing.getName());
         existing.setBirthday(user.getBirthday() != null ? user.getBirthday() : existing.getBirthday());
 
         log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
+
+        // 5. Возвращаем успешный ответ с ПОЛНЫМ объектом
         return ResponseEntity.ok(existing);
     }
 
