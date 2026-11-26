@@ -16,7 +16,7 @@ import java.util.Map;
 @Slf4j
 public class FilmController {
     private final List<Film> films = new ArrayList<>();
-    private int nextId = 1;
+    private long nextId = 1;
 
     @PostMapping
     public ResponseEntity<?> add(@RequestBody Film film) {
@@ -52,14 +52,18 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-        // 1. ЗАЩИТА: Проверка на null
+        // 1. Защита от пустого тела запроса
         if (film == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
-        // 2. Проверка ID
-        if (film.getId() != 0 && film.getId() != id) {
+        // 2. Проверка ID — исправленная логика
+        if (film.getId() == null) {
+            // ID не задан — используем ID из пути
+            film.setId(id);
+        } else if (film.getId() != id) {
+            // ID задан, но не совпадает с путём — ошибка
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
@@ -70,20 +74,41 @@ public class FilmController {
                 .findFirst()
                 .orElse(null);
 
-        // 4. Если фильм не найден -> 404
         if (existing == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Фильм не найден"));
         }
 
-        // 5. Явное обновление полей
-        if (film.getName() != null) existing.setName(film.getName());
-        if (film.getDescription() != null) existing.setDescription(film.getDescription());
-        if (film.getReleaseDate() != null) existing.setReleaseDate(film.getReleaseDate());
+        // 4. Валидация данных перед обновлением
+        if (film.getName() == null || film.getName().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Название фильма не может быть пустым"));
+        }
+
+        if (film.getDescription() != null && film.getDescription().length() > 200) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Описание не должно превышать 200 символов"));
+        }
+
+        if (film.getReleaseDate() != null &&
+                film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Дата релиза должна быть не раньше 28.12.1895"));
+        }
+
+        if (film.getDuration() == null || film.getDuration() <= 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Длительность фильма должна быть положительной"));
+        }
+
+        // 5. Обновление полей — только после успешной валидации
+        existing.setName(film.getName());
+        existing.setDescription(film.getDescription());
+        existing.setReleaseDate(film.getReleaseDate());
+        existing.setDuration(film.getDuration());
 
         log.info("Обновлен фильм с id={}, name={}", id, existing.getName());
 
-        // 6. Возвращаем УСПЕШНЫЙ ответ (200 OK)
         return ResponseEntity.ok(existing);
     }
 

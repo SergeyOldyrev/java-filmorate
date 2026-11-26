@@ -24,16 +24,29 @@ public class UserController {
     public ResponseEntity<?> add(@Valid @RequestBody User user) {
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
             log.warn("Дата рождения в будущем: {}", user.getBirthday());
-
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Дата рождения не может быть в будущем"));
         }
-
-        if (user.getName() == null || user.getName().isBlank()) {
+        if (user.getLogin() == null || user.getLogin().isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Имя пользователя не может быть пустым"));
+                    .body(Map.of("error", "Логин не может быть пустым"));
+        }
+        // Подставляем login в name, если name пустой или пробельный
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
         }
 
+        if (user.getLogin().contains(" ")) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Логин не может содержать пробелы"));
+        }
+
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email не может быть пустым"));
+        }
+        if (!user.getEmail().contains("@")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email должен содержать символ @"));
+        }
         user.setId(nextId++);
         users.add(user);
         log.info("Добавлен пользователь с id={}, login={}", user.getId(), user.getLogin());
@@ -49,9 +62,11 @@ public class UserController {
         }
 
         // 2. Проверка ID
-        if (user.getId() != 0 && user.getId() != id) {
-            return ResponseEntity.badRequest().body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+        if (user.getId() != null && user.getId() != 0 && !user.getId().equals(id)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
+
 
         // 3. Поиск пользователя
         User existing = users.stream()

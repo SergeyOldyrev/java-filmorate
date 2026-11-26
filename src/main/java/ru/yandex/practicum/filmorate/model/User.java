@@ -10,7 +10,7 @@ import java.time.LocalDate;
  */
 @Data
 public class User {
-    private int id;
+    private Integer id;
 
     @NotBlank(message = "Email обязателен")
     @Email(message = "Некорректный email")
