@@ -38,7 +38,6 @@ public class FilmController {
                     .body(Map.of("error", "Дата релиза должна быть не раньше 28.12.1895"));
         }
 
-        // ✅ Исправлено: убрана проверка на null, проверяем только значение
         if (film.getDuration() == null || film.getDuration() <= 0) {
             log.warn("Продолжительность фильма невалидна");
             return ResponseEntity.badRequest().body(Map.of("error", "Длительность фильма должна быть положительной"));
@@ -52,25 +51,9 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-        // 1. Защита от пустого тела запроса
-        if (film == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Тело запроса не может быть пустым"));
-        }
-
-        // 2. Проверка ID — исправленная логика
-        if (film.getId() == null) {
-            // ID не задан — используем ID из пути
-            film.setId(id);
-        } else if (film.getId() != id) {
-            // ID задан, но не совпадает с путём — ошибка
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
-        }
-
-        // 3. Поиск фильма
+        // 1. Поиск фильма
         Film existing = films.stream()
-                .filter(f -> f.getId() == id)
+                .filter(f -> f.getId().equals(id))
                 .findFirst()
                 .orElse(null);
 
@@ -79,7 +62,7 @@ public class FilmController {
                     .body(Map.of("error", "Фильм не найден"));
         }
 
-        // 4. Валидация данных перед обновлением
+        // 2. ВАЛИДАЦИЯ ДАННЫХ — только если фильм существует
         if (film.getName() == null || film.getName().isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Название фильма не может быть пустым"));
@@ -101,13 +84,21 @@ public class FilmController {
                     .body(Map.of("error", "Длительность фильма должна быть положительной"));
         }
 
-        // 5. Обновление полей — только после успешной валидации
+        // 3. ПРОВЕРКА ID — после валидации и после проверки существования
+        if (film.getId() == null) {
+            film.setId(id); // ID не задан — берём из пути
+        } else if (!film.getId().equals(id)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+        }
+
+        // 4. Обновление полей — только если все проверки пройдены
         existing.setName(film.getName());
         existing.setDescription(film.getDescription());
         existing.setReleaseDate(film.getReleaseDate());
         existing.setDuration(film.getDuration());
 
-        log.info("Обновлен фильм с id={}, name={}", id, existing.getName());
+        log.info("Обновлён фильм с id={}, name={}", id, existing.getName());
 
         return ResponseEntity.ok(existing);
     }
@@ -126,7 +117,7 @@ public class FilmController {
 
         if (film == null) {
             log.warn("Запрос несуществующего фильма с id={}", id);
-            // ✅ ВАЖНО: Возвращаем JSON вместо пустого тела
+
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Фильм не найден"));
         }

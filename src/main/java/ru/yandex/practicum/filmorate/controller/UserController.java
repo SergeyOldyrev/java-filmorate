@@ -18,7 +18,7 @@ import java.util.Map;
 public class UserController {
 
     private final List<User> users = new ArrayList<>();
-    private int nextId = 1;
+    private Long nextId = 1L;
 
     @PostMapping
     public ResponseEntity<?> add(@Valid @RequestBody User user) {
@@ -31,7 +31,7 @@ public class UserController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Логин не может быть пустым"));
         }
-        // Подставляем login в name, если name пустой или пробельный
+
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
@@ -56,12 +56,11 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
-        // 1. Защита от пустого тела запроса
+
         if (user == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
-        // 2. Проверка ID
         if (user.getId() != null && user.getId() != 0 && !user.getId().equals(id)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
@@ -79,7 +78,6 @@ public class UserController {
                     .body(Map.of("error", "Пользователь не найден"));
         }
 
-
         existing.setLogin(user.getLogin() != null ? user.getLogin() : existing.getLogin());
         existing.setEmail(user.getEmail() != null ? user.getEmail() : existing.getEmail());
         existing.setName(user.getName() != null ? user.getName() : existing.getName());
@@ -87,7 +85,6 @@ public class UserController {
 
         log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
 
-        // 5. Возвращаем успешный ответ с ПОЛНЫМ объектом
         return ResponseEntity.ok(existing);
     }
 
@@ -110,5 +107,23 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<User>> getAll() {
         return ResponseEntity.ok(users);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> delete(@PathVariable long id) {
+        User existing = users.stream()
+                .filter(u -> u.getId() == id)
+                .findFirst()
+                .orElse(null);
+
+        if (existing == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Пользователь не найден"));
+        }
+
+        users.remove(existing);
+        log.info("Удален пользователь с id={}", id);
+
+        return ResponseEntity.noContent().build();
     }
 }

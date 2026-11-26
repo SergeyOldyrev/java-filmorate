@@ -14,6 +14,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,7 +34,6 @@ class UserApplicationTests {
         createdIds.clear();
     }
 
-    // ---------- позитивные ----------
     @Test
     void shouldSetNameToLoginWhenNameIsEmpty() {
         User user = validUser();
@@ -50,8 +50,6 @@ class UserApplicationTests {
         assertEquals(user.getLogin(), created.getName());
     }
 
-
-    // ---------- валидация: ровно одно поле испорчено ----------
     @Test
     void shouldReturnBadRequestWhenEmailIsEmpty() {
         User user = validUser();
@@ -94,15 +92,14 @@ class UserApplicationTests {
         assertStatusBadRequest(post(user));
     }
 
-    // ---------- обновление ----------
     @Test
     void shouldReturnBadRequestAndNotModifyUserWhenIdMismatchInUpdate() {
         User created = create(validUser());
         String originalLogin = created.getLogin();
         String originalEmail = created.getEmail();
         User update = validUser();
-        update.setId(Integer.MAX_VALUE); // не совпадает с id в пути update.setLogin("mismatch" + suffix());
-        ResponseEntity<User> response = put(created.getId(), update);
+        update.setId((long) Integer.MAX_VALUE); // не совпадает с id в пути update.setLogin("mismatch" + suffix());
+        ResponseEntity<User> response = put(Math.toIntExact(created.getId()), update);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         User reloaded = rest.getForObject("/users/{id}", User.class, created.getId());
         assertNotNull(reloaded);
@@ -110,7 +107,6 @@ class UserApplicationTests {
         assertEquals(originalEmail, reloaded.getEmail(), "запись изменилась несмотря на 400");
     }
 
-    // ---------- хелперы ----------
     private User validUser() {
         String s = suffix();
         User user = new User();
@@ -130,7 +126,7 @@ class UserApplicationTests {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody(), "POST /users вернул пустое тело");
         assertNotNull(response.getBody().getId(), "POST /users не вернул id");
-        createdIds.add(response.getBody().getId());
+        createdIds.add(Math.toIntExact(response.getBody().getId()));
         return response.getBody();
     }
 
@@ -145,5 +141,85 @@ class UserApplicationTests {
     private void assertStatusBadRequest(ResponseEntity<?> response) {
         // TestRestTemplate не бросает исключений, поэтому 500 не замаскируется
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenIdMismatch() {
+        // Создаем пользователя
+        User created = create(validUser());
+
+        // Готовим обновление с другим ID
+        User update = validUser();
+        update.setId(99999L); // Несовпадающий ID
+        update.setLogin("new_login");
+
+        ResponseEntity<Map> response = rest.exchange(
+                "/users/{id}",
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                Map.class,
+                created.getId()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        assertTrue(response.getBody().containsKey("error"));
+        assertFalse(response.getBody().containsKey("id"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingNonExisting() {
+        User update = validUser();
+        update.setId(123456L);
+
+        ResponseEntity<Map> response = rest.exchange(
+                "/users/{id}",
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                Map.class,
+                123456L
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody().containsKey("error"));
+    }
+
+    @Test
+    void shouldReturnOkAndUpdateFields() {
+        // 1. Создаем пользователя
+        User created = create(validUser());
+        long createdId = created.getId();
+
+        // 2. Генерируем уникальный суффикс ОДИН РАЗ
+        String suffix = suffix();
+        String expectedLogin = "updated_login_" + suffix;
+        String expectedEmail = "updated_" + suffix + "@test.com";
+        String expectedName = "Updated Name " + suffix;
+
+        // 3. Готовим данные для обновления, используя тот же суффикс
+        User update = validUser();
+        update.setId(createdId);
+        update.setLogin(expectedLogin);
+        update.setEmail(expectedEmail);
+        update.setName(expectedName);
+
+        // 4. Отправляем PUT запрос
+        ResponseEntity<User> response = rest.exchange(
+                "/users/{id}",
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                User.class,
+                createdId
+        );
+
+        // 5. Проверяем статус
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        // 6. Сравниваем поля с заранее сохраненными значениями
+        assertEquals(expectedLogin, response.getBody().getLogin());
+        assertEquals(expectedEmail, response.getBody().getEmail());
+        assertEquals(expectedName, response.getBody().getName());
+        assertEquals(createdId, response.getBody().getId());
     }
 }
