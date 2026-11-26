@@ -20,6 +20,7 @@ public class FilmController {
 
     @PostMapping
     public ResponseEntity<?> add(@RequestBody Film film) {
+
         if (film.getName() == null || film.getName().isBlank()) {
             log.warn("Попытка создания фильма с пустым названием");
             return ResponseEntity.badRequest()
@@ -51,7 +52,18 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-        // 1. Поиск фильма
+
+        if (film == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
+        }
+
+        if (film.getId() == null) {
+            film.setId(id);
+        } else if (!film.getId().equals(id)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+        }
+
         Film existing = films.stream()
                 .filter(f -> f.getId().equals(id))
                 .findFirst()
@@ -62,7 +74,6 @@ public class FilmController {
                     .body(Map.of("error", "Фильм не найден"));
         }
 
-        // 2. ВАЛИДАЦИЯ ДАННЫХ — только если фильм существует
         if (film.getName() == null || film.getName().isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Название фильма не может быть пустым"));
@@ -84,15 +95,6 @@ public class FilmController {
                     .body(Map.of("error", "Длительность фильма должна быть положительной"));
         }
 
-        // 3. ПРОВЕРКА ID — после валидации и после проверки существования
-        if (film.getId() == null) {
-            film.setId(id); // ID не задан — берём из пути
-        } else if (!film.getId().equals(id)) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
-        }
-
-        // 4. Обновление полей — только если все проверки пройдены
         existing.setName(film.getName());
         existing.setDescription(film.getDescription());
         existing.setReleaseDate(film.getReleaseDate());

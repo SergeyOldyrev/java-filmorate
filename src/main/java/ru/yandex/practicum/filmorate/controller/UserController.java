@@ -61,7 +61,9 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
-        if (user.getId() != null && user.getId() != 0 && !user.getId().equals(id)) {
+        if (user.getId() == null) {
+            user.setId(id);
+        } else if (!user.getId().equals(id)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
@@ -69,7 +71,7 @@ public class UserController {
 
         // 3. Поиск пользователя
         User existing = users.stream()
-                .filter(u -> u.getId() == id)
+                .filter(u -> u.getId().equals(id)) // Используем .equals() для Long
                 .findFirst()
                 .orElse(null);
 
@@ -78,13 +80,22 @@ public class UserController {
                     .body(Map.of("error", "Пользователь не найден"));
         }
 
-        existing.setLogin(user.getLogin() != null ? user.getLogin() : existing.getLogin());
-        existing.setEmail(user.getEmail() != null ? user.getEmail() : existing.getEmail());
-        existing.setName(user.getName() != null ? user.getName() : existing.getName());
-        existing.setBirthday(user.getBirthday() != null ? user.getBirthday() : existing.getBirthday());
+        if (user.getLogin() != null) {
+            existing.setLogin(user.getLogin());
+        }
+        if (user.getEmail() != null) {
+            existing.setEmail(user.getEmail());
+        }
+        if (user.getName() != null) {
+            existing.setName(user.getName());
+        }
+        if (user.getBirthday() != null) {
+            existing.setBirthday(user.getBirthday());
+        }
 
-        log.info("Обновлен пользователь с id={}, login={}", id, existing.getLogin());
+        log.info("Обновлён пользователь с id={}, login={}", id, existing.getLogin());
 
+        // 4. Возвращаем полный объект пользователя — как ожидает тест
         return ResponseEntity.ok(existing);
     }
 
