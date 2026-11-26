@@ -51,22 +51,20 @@ public class FilmController {
         return ResponseEntity.status(201).body(film);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
+    @PutMapping
+    public ResponseEntity<?> update(@RequestBody Film film) {
         log.warn("заход в update метод");
         if (film == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
         if (film.getId() == null) {
-            film.setId(id);
-        } else if (!Objects.equals(film.getId(), id)) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+                    .body(Map.of("error", "ID фильма должен быть указан"));
         }
 
         Film existing = films.stream()
-                .filter(f -> f.getId().equals(id))
+                .filter(f -> Objects.equals(f.getId(), film.getId()))
                 .findFirst()
                 .orElse(null);
 
@@ -101,7 +99,7 @@ public class FilmController {
         existing.setReleaseDate(film.getReleaseDate());
         existing.setDuration(film.getDuration());
 
-        log.info("Обновлён фильм с id={}, name={}", id, existing.getName());
+        log.info("Обновлён фильм с id={}, name={}", existing.getId(), existing.getName());
 
         return ResponseEntity.ok(existing);
     }

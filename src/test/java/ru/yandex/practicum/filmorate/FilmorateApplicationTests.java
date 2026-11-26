@@ -93,7 +93,7 @@ class FilmorateApplicationTests {
         update.setDuration(-10);
         HttpEntity<Film> updateEntity = new HttpEntity<>(update);
         try {
-            restTemplate.exchange("/films/{id}", HttpMethod.PUT, updateEntity, String.class, id);
+            restTemplate.exchange("/films", HttpMethod.PUT, updateEntity, String.class, id);
             fail("Ожидалась ошибка 400");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
@@ -176,10 +176,10 @@ class FilmorateApplicationTests {
         HttpEntity<Film> updateEntity = new HttpEntity<>(update);
 
         try {
-            restTemplate.exchange("/films/{id}", HttpMethod.PUT, updateEntity, String.class, 1L);
+            restTemplate.exchange("/films", HttpMethod.PUT, updateEntity, String.class, 1L);
             fail("Ожидалась ошибка 400");
         } catch (HttpClientErrorException e) {
-            assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
+            assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());
         }
     }
 
@@ -195,7 +195,7 @@ class FilmorateApplicationTests {
         HttpEntity<Film> updateEntity = new HttpEntity<>(update);
 
         try {
-            restTemplate.exchange("/films/{id}", HttpMethod.PUT, updateEntity, String.class, 999L);
+            restTemplate.exchange("/films", HttpMethod.PUT, updateEntity, String.class, 999L);
             fail("Ожидалась ошибка 404");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());

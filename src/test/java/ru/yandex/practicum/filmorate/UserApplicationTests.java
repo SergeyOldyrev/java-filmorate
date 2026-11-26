@@ -92,21 +92,6 @@ class UserApplicationTests {
         assertStatusBadRequest(post(user));
     }
 
-    @Test
-    void shouldReturnBadRequestAndNotModifyUserWhenIdMismatchInUpdate() {
-        User created = create(validUser());
-        String originalLogin = created.getLogin();
-        String originalEmail = created.getEmail();
-        User update = validUser();
-        update.setId((long) Integer.MAX_VALUE); // не совпадает с id в пути update.setLogin("mismatch" + suffix());
-        ResponseEntity<User> response = put(Math.toIntExact(created.getId()), update);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        User reloaded = rest.getForObject("/users/{id}", User.class, created.getId());
-        assertNotNull(reloaded);
-        assertEquals(originalLogin, reloaded.getLogin(), "запись изменилась несмотря на 400");
-        assertEquals(originalEmail, reloaded.getEmail(), "запись изменилась несмотря на 400");
-    }
-
     private User validUser() {
         String s = suffix();
         User user = new User();
@@ -135,7 +120,7 @@ class UserApplicationTests {
     }
 
     private ResponseEntity<User> put(int pathId, User body) {
-        return rest.exchange("/users/{id}", HttpMethod.PUT, new HttpEntity<>(body), User.class, pathId);
+        return rest.exchange("/users", HttpMethod.PUT, new HttpEntity<>(body), User.class, pathId);
     }
 
     private void assertStatusBadRequest(ResponseEntity<?> response) {
@@ -154,14 +139,14 @@ class UserApplicationTests {
         update.setLogin("new_login");
 
         ResponseEntity<Map> response = rest.exchange(
-                "/users/{id}",
+                "/users",
                 HttpMethod.PUT,
                 new HttpEntity<>(update),
                 Map.class,
                 created.getId()
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 
         assertTrue(response.getBody().containsKey("error"));
         assertFalse(response.getBody().containsKey("id"));
@@ -173,7 +158,7 @@ class UserApplicationTests {
         update.setId(123456L);
 
         ResponseEntity<Map> response = rest.exchange(
-                "/users/{id}",
+                "/users",
                 HttpMethod.PUT,
                 new HttpEntity<>(update),
                 Map.class,
@@ -190,36 +175,49 @@ class UserApplicationTests {
         User created = create(validUser());
         long createdId = created.getId();
 
-        // 2. Генерируем уникальный суффикс ОДИН РАЗ
+        // 2. Генерируем данные для обновления
         String suffix = suffix();
         String expectedLogin = "updated_login_" + suffix;
         String expectedEmail = "updated_" + suffix + "@test.com";
         String expectedName = "Updated Name " + suffix;
 
-        // 3. Готовим данные для обновления, используя тот же суффикс
-        User update = validUser();
-        update.setId(createdId);
-        update.setLogin(expectedLogin);
-        update.setEmail(expectedEmail);
-        update.setName(expectedName);
+        User updatePayload = validUser();
+        updatePayload.setId(createdId); // ID должен совпадать
+        updatePayload.setLogin(expectedLogin);
+        updatePayload.setEmail(expectedEmail);
+        updatePayload.setName(expectedName);
+        // Birthday можно не менять, оставим старый
 
-        // 4. Отправляем PUT запрос
+        // 3. Отправляем PUT запрос
         ResponseEntity<User> response = rest.exchange(
-                "/users/{id}",
+                "/users",
                 HttpMethod.PUT,
-                new HttpEntity<>(update),
+                new HttpEntity<>(updatePayload),
                 User.class,
                 createdId
         );
 
-        // 5. Проверяем статус
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+        // 4. ПРОВЕРКИ (Assertions)
 
-        // 6. Сравниваем поля с заранее сохраненными значениями
-        assertEquals(expectedLogin, response.getBody().getLogin());
-        assertEquals(expectedEmail, response.getBody().getEmail());
-        assertEquals(expectedName, response.getBody().getName());
-        assertEquals(createdId, response.getBody().getId());
+        // Статус должен быть 200 OK (не 500!)
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Статус должен быть 200 OK");
+
+        assertNotNull(response.getBody(), "Тело ответа не должно быть null");
+
+        User updatedUser = response.getBody();
+
+        // Проверка ID
+        assertEquals(createdId, updatedUser.getId(), "ID должен совпадать");
+
+        // Проверка полей
+        assertEquals(expectedLogin, updatedUser.getLogin(), "Login должен обновиться");
+        assertEquals(expectedEmail, updatedUser.getEmail(), "Email должен обновиться");
+        assertEquals(expectedName, updatedUser.getName(), "Name должен обновиться");
+
+        // Birthday должен остаться старым (если мы его не меняли)
+        assertEquals(created.getBirthday(), updatedUser.getBirthday(), "Birthday не должен измениться");
+
+        System.out.println("✅ Тест пройден! Пользователь успешно обновлен: " + updatedUser);
     }
+
 }

@@ -55,48 +55,52 @@ public class UserController {
         return ResponseEntity.status(201).body(user);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
-
-        if (user == null) {
-            log.warn("Тело запроса пустое");
-            return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
-        }
-
+    @PutMapping
+    public ResponseEntity<?> update(@Valid @RequestBody User user) {
         if (user.getId() == null) {
-            user.setId(id);
-        } else if  (!Objects.equals(user.getId(), id)) {
+            log.warn("ID пользователя не указан");
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
+                    .body(Map.of("error", "ID должен быть указан"));
         }
 
-
-        // 3. Поиск пользователя
         User existing = users.stream()
-                .filter(u -> u.getId().equals(id))
+                .filter(u -> Objects.equals(u.getId(), user.getId()))
                 .findFirst()
                 .orElse(null);
 
         if (existing == null) {
+            log.warn("Пользователь с id={} не найден", user.getId());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Пользователь не найден"));
         }
 
+        // Не забудьте также перенести проверки валидации из add() (логин без пробелов, дата рождения не в будущем и т.д.)
+        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Дата рождения не может быть в будущем"));
+        }
         if (user.getLogin() != null) {
+            if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Логин не может быть пустым или содержать пробелы"));
+            }
             existing.setLogin(user.getLogin());
         }
         if (user.getEmail() != null) {
+            if (user.getEmail().isBlank() || !user.getEmail().contains("@")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Некорректный email"));
+            }
             existing.setEmail(user.getEmail());
         }
         if (user.getName() != null) {
-            existing.setName(user.getName());
+            existing.setName(user.getName().isBlank() ? existing.getLogin() : user.getName());
         }
         if (user.getBirthday() != null) {
             existing.setBirthday(user.getBirthday());
         }
 
-        log.info("Обновлён пользователь с id={}, login={}", id, existing.getLogin());
-
+        log.info("Обновлён пользователь с id={}, login={}", existing.getId(), existing.getLogin());
         return ResponseEntity.ok(existing);
     }
 
