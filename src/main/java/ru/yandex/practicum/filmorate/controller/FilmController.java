@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/films")
@@ -52,14 +53,14 @@ public class FilmController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody Film film) {
-
+        log.warn("заход в update метод");
         if (film == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
         if (film.getId() == null) {
             film.setId(id);
-        } else if (!film.getId().equals(id)) {
+        } else if (!Objects.equals(film.getId(), id)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }

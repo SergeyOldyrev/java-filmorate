@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/users")
@@ -58,12 +59,13 @@ public class UserController {
     public ResponseEntity<?> update(@PathVariable long id, @RequestBody User user) {
 
         if (user == null) {
+            log.warn("Тело запроса пустое");
             return ResponseEntity.badRequest().body(Map.of("error", "Тело запроса не может быть пустым"));
         }
 
         if (user.getId() == null) {
             user.setId(id);
-        } else if (!user.getId().equals(id)) {
+        } else if  (!Objects.equals(user.getId(), id)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "ID в теле не совпадает с ID в пути"));
         }
@@ -71,7 +73,7 @@ public class UserController {
 
         // 3. Поиск пользователя
         User existing = users.stream()
-                .filter(u -> u.getId().equals(id)) // Используем .equals() для Long
+                .filter(u -> u.getId().equals(id))
                 .findFirst()
                 .orElse(null);
 
@@ -95,7 +97,6 @@ public class UserController {
 
         log.info("Обновлён пользователь с id={}, login={}", id, existing.getLogin());
 
-        // 4. Возвращаем полный объект пользователя — как ожидает тест
         return ResponseEntity.ok(existing);
     }
 
